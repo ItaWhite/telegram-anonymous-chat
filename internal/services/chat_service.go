@@ -25,29 +25,28 @@ func (s *ChatService) Next(userID int64) ([]BotMessage, error) {
 	defer s.mu.Unlock()
 
 	var msgs []BotMessage
-	
+
 	user, ok := s.users[userID]
 	if !ok {
-		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Отправьте /start для входа"})
+		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Отправьте /start для входа."})
 		return msgs, nil
 	}
 
-	// TODO проверка бана
-
 	if user.State == models2.StatePaired {
-		partner := s.users[user.PartnerID]
-		user.PartnerID = 0
-		partner.PartnerID = 0
-		user.State, partner.State = models2.StateIdle, models2.StateIdle
-
-		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Вы завершили чат"})
-		msgs = append(msgs, BotMessage{ChatID: partner.ID, Message: "Собеседник завершил чат"})
+		partner, ok := s.users[user.PartnerID]
+		if !ok {
+			user.State = models2.StateIdle
+			user.PartnerID = 0
+			return msgs, nil
+		}
+		unpair(user, partner)
+		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Вы завершили чат."})
+		msgs = append(msgs, BotMessage{ChatID: partner.ID, Message: "Собеседник завершил чат."})
 	}
-
-	msgs = append(msgs, BotMessage{ChatID: userID, Message: "Поиск собеседника..."})
 
 	// отправка /next до завершения поиска
 	if user.State == models2.StateWaiting {
+		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Поиск собеседника..."})
 		return msgs, nil
 	}
 
@@ -56,16 +55,13 @@ func (s *ChatService) Next(userID int64) ([]BotMessage, error) {
 		if !ok {
 			return msgs, nil
 		}
-
-		// если повторно быстро отправить /next, другая горутина может вытащить этого же юзера из очереди
-		if partnerID == userID {
-			// TODO вытащить другого
+		partner, ok := s.users[partnerID]
+		if !ok {
+			user.State = models2.StateIdle
+			user.PartnerID = 0
 			return msgs, nil
 		}
-
-		user.PartnerID = partnerID
-		s.users[partnerID].PartnerID = userID
-		s.users[partnerID].State, user.State = models2.StatePaired, models2.StatePaired
+		pair(user, partner)
 
 		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Собеседник найден"})
 		msgs = append(msgs, BotMessage{ChatID: partnerID, Message: "Собеседник найден"})
@@ -74,6 +70,7 @@ func (s *ChatService) Next(userID int64) ([]BotMessage, error) {
 
 	s.waitingQueue.Enqueue(userID)
 	s.users[userID].State = models2.StateWaiting
+	msgs = append(msgs, BotMessage{ChatID: userID, Message: "Поиск собеседника..."})
 	return msgs, nil
 }
 
@@ -85,26 +82,27 @@ func (s *ChatService) Stop(userID int64) ([]BotMessage, error) {
 
 	user, ok := s.users[userID]
 	if !ok {
-		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Отправьте /start для входа"})
+		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Отправьте /start для входа."})
 		return msgs, nil
 	}
 
-	// TODO проверка бана
-
 	switch user.State {
 	case models2.StateIdle:
-		msgs = append(msgs, BotMessage{ChatID: userID, Message: "У вас сейчас нет собеседника"})
+		msgs = append(msgs, BotMessage{ChatID: userID, Message: "У вас сейчас нет собеседника.\nДля поиска собеседника отправьте /next."})
 	case models2.StateWaiting:
 		s.waitingQueue.Remove(userID)
 		user.State = models2.StateIdle
-		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Поиск собеседника прекращен"})
+		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Поиск собеседника прекращен."})
 	case models2.StatePaired:
-		partner := s.users[user.PartnerID]
-		user.PartnerID = 0
-		partner.PartnerID = 0
-		user.State, partner.State = models2.StateIdle, models2.StateIdle
-		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Вы завершили чат"})
-		msgs = append(msgs, BotMessage{ChatID: partner.ID, Message: "Собеседник завершил чат"})
+		partner, ok := s.users[user.PartnerID]
+		if !ok {
+			user.State = models2.StateIdle
+			user.PartnerID = 0
+			return msgs, nil
+		}
+		unpair(user, partner)
+		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Вы завершили чат.\nДля поиска собеседника отправьте /next."})
+		msgs = append(msgs, BotMessage{ChatID: partner.ID, Message: "Собеседник завершил чат.\nДля поиска собеседника отправьте /next."})
 	}
 	return msgs, nil
 }
@@ -127,7 +125,7 @@ func (s *ChatService) Start(userID int64, username string) ([]BotMessage, error)
 		return msgs, nil
 	}
 
-	msgs = append(msgs, BotMessage{ChatID: userID, Message: "Вы уже вошли"})
+	msgs = append(msgs, BotMessage{ChatID: userID, Message: "Вы уже вошли.\nДля поиска собеседника отправьте /next"})
 	return msgs, nil
 }
 
@@ -139,22 +137,33 @@ func (s *ChatService) Default(userID int64, userMessage string) ([]BotMessage, e
 
 	user, ok := s.users[userID]
 	if !ok {
-		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Отправьте /start для входа"})
+		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Отправьте /start для входа."})
 		return msgs, nil
 	}
 
 	switch user.State {
 	case models2.StateIdle:
-		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Для поиска собеседника отправьте /next"})
+		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Вы не в диалоге.\nДля поиска собеседника отправьте /next."})
 	case models2.StateWaiting:
-		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Собеседник еще не найден"})
+		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Собеседник еще не найден."})
 	case models2.StatePaired:
 		partnerID := user.PartnerID
-		// TODO обработать ошибку при блокировке бота собеседником
 		msgs = append(msgs, BotMessage{ChatID: partnerID, Message: userMessage})
 
 	}
 	return msgs, nil
+}
+
+func pair(u1, u2 *models2.User) {
+	u1.PartnerID = u2.ID
+	u2.PartnerID = u1.ID
+	u1.State, u2.State = models2.StatePaired, models2.StatePaired
+}
+
+func unpair(u1, u2 *models2.User) {
+	u1.PartnerID = 0
+	u2.PartnerID = 0
+	u1.State, u2.State = models2.StateIdle, models2.StateIdle
 }
 
 type BotMessage struct {

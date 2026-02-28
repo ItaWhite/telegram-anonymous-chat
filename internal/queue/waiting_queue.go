@@ -23,7 +23,6 @@ func (w *WaitingQueue) Enqueue(userID int64) {
 }
 
 func (w *WaitingQueue) Remove(userID int64) {
-	// TODO оптимизировать
 	filtered := w.users[:0]
 
 	for _, id := range w.users {

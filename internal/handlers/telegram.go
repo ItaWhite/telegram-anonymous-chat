@@ -2,8 +2,8 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"go-telegrambot-test/internal/services"
-	"log"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
@@ -24,7 +24,7 @@ func (h *TelegramHandler) DefaultHandler(ctx context.Context, b *bot.Bot, update
 	userID := update.Message.From.ID
 	msgs, err := h.service.Default(userID, update.Message.Text)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 
 	sendMessages(ctx, b, msgs)
@@ -35,7 +35,7 @@ func (h *TelegramHandler) StartHandler(ctx context.Context, b *bot.Bot, update *
 	username := update.Message.From.Username
 	msgs, err := h.service.Start(userID, username)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 
 	sendMessages(ctx, b, msgs)
@@ -45,7 +45,7 @@ func (h *TelegramHandler) NextHandler(ctx context.Context, b *bot.Bot, update *m
 	userID := update.Message.Chat.ID
 	msgs, err := h.service.Next(userID)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 
 	sendMessages(ctx, b, msgs)
@@ -55,7 +55,7 @@ func (h *TelegramHandler) StopHandler(ctx context.Context, b *bot.Bot, update *m
 	userID := update.Message.Chat.ID
 	msgs, err := h.service.Stop(userID)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 
 	sendMessages(ctx, b, msgs)
