@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
-	"go-telegrambot-test/internal/handlers"
-	"go-telegrambot-test/internal/services"
 	"log"
 	"os"
 	"os/signal"
+	"telegram-anonymous-chat/internal/handlers"
+	"telegram-anonymous-chat/internal/services"
 
 	"github.com/go-telegram/bot"
 	"github.com/joho/godotenv"

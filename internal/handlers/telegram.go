@@ -3,8 +3,8 @@ package handlers
 import (
 	"context"
 	"fmt"
-	"go-telegrambot-test/internal/services"
 	"strconv"
+	"telegram-anonymous-chat/internal/services"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"

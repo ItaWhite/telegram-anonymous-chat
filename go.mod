@@ -1,4 +1,4 @@
-module go-telegrambot-test
+module telegram-anonymous-chat
 
 go 1.24
 

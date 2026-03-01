@@ -3,11 +3,11 @@ package services
 import (
 	"errors"
 	"fmt"
-	botmodels "go-telegrambot-test/internal/models"
-	"go-telegrambot-test/internal/queue"
 	"strconv"
 	"strings"
 	"sync"
+	botmodels "telegram-anonymous-chat/internal/models"
+	"telegram-anonymous-chat/internal/queue"
 	"time"
 )
 
