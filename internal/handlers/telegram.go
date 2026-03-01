@@ -22,6 +22,10 @@ func (h *TelegramHandler) DefaultHandler(ctx context.Context, b *bot.Bot, update
 	if update.Message == nil {
 		return
 	}
+	if update.Message.Photo != nil && len(update.Message.Photo) != 0 { // если отправлено фото
+		h.handlePhoto(ctx, b, update)
+		return
+	}
 	userID := update.Message.From.ID
 	res, err := h.service.Default(userID, update.Message.Text)
 	if err != nil {
@@ -73,7 +77,6 @@ func sendMessages(ctx context.Context, b *bot.Bot, res services.ServiceResult) {
 			Text:   msg.Message,
 		})
 	}
-
 }
 
 func (h *TelegramHandler) CallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
@@ -83,7 +86,10 @@ func (h *TelegramHandler) CallbackHandler(ctx context.Context, b *bot.Bot, updat
 
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
 	data := update.CallbackQuery.Data
-	h.service.ChangeRating(data)
+	err := h.service.ChangeRating(data)
+	if err != nil {
+		fmt.Println(err)
+	}
 	messageID := update.CallbackQuery.Message.Message.ID
 	changeRatingKeyboard(ctx, b, chatID, messageID)
 }
@@ -114,5 +120,20 @@ func changeRatingKeyboard(ctx context.Context, b *bot.Bot, chatID int64, message
 		MessageID:   messageID,
 		Text:        "Спасибо за оценку.",
 		ReplyMarkup: nil,
+	})
+}
+
+func (h *TelegramHandler) handlePhoto(ctx context.Context, b *bot.Bot, update *models.Update) {
+	photo := update.Message.Photo[len(update.Message.Photo)-1]
+	userID := update.Message.From.ID
+	partnerID := h.service.GetPartner(userID)
+	if partnerID == 0 {
+		return
+	}
+
+	b.SendPhoto(ctx, &bot.SendPhotoParams{
+		ChatID:  partnerID,
+		Photo:   &models.InputFileString{Data: photo.FileID},
+		Caption: update.Message.Caption,
 	})
 }

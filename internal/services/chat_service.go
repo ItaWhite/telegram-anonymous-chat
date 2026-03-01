@@ -1,6 +1,7 @@
 package services
 
 import (
+	"errors"
 	"fmt"
 	botmodels "go-telegrambot-test/internal/models"
 	"go-telegrambot-test/internal/queue"
@@ -197,26 +198,26 @@ func (s *ChatService) Default(userID int64, userMessage string) (ServiceResult, 
 	return res, nil
 }
 
-func (s *ChatService) ChangeRating(data string) {
+func (s *ChatService) ChangeRating(data string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	parts := strings.Split(data, ":")
 	if len(parts) != 2 {
-		return
+		return errors.New("incorrect CallbackData")
 	}
-	userID, err := strconv.Atoi(parts[1])
+	userID, err := strconv.ParseInt(parts[1], 10, 64)
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
 	switch parts[0] {
 	case "like":
-		s.users[int64(userID)].Rating++
+		s.users[userID].Rating++
 	case "dislike":
-		s.users[int64(userID)].Rating--
+		s.users[userID].Rating--
 	}
-	fmt.Printf("ID: %d | Rating: %d\n", userID, s.users[int64(userID)].Rating)
+	fmt.Printf("ID: %d | Rating: %d\n", userID, s.users[userID].Rating)
+	return nil
 }
 
 func pair(u1, u2 *botmodels.User) {
@@ -242,6 +243,10 @@ func resetDailyChats(u *botmodels.User) {
 
 func isRestricted(u *botmodels.User) bool {
 	return u.Rating < 0 && u.DailyChats >= DailyChatLimit
+}
+
+func (s *ChatService) GetPartner(userID int64) int64 {
+	return s.users[userID].PartnerID
 }
 
 type BotMessage struct {
