@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"go-telegrambot-test/internal/services"
+	"strconv"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
@@ -75,8 +76,6 @@ func sendMessages(ctx context.Context, b *bot.Bot, res services.ServiceResult) {
 
 }
 
-func (h *TelegramHandler) TestHandler(ctx context.Context, b *bot.Bot, update *models.Update) {}
-
 func (h *TelegramHandler) CallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
 		CallbackQueryID: update.CallbackQuery.ID,
@@ -84,22 +83,23 @@ func (h *TelegramHandler) CallbackHandler(ctx context.Context, b *bot.Bot, updat
 
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
 	data := update.CallbackQuery.Data
-	h.service.ChangeRating(chatID, data)
+	h.service.ChangeRating(data)
 	messageID := update.CallbackQuery.Message.Message.ID
 	changeRatingKeyboard(ctx, b, chatID, messageID)
 }
 
 func sendRatingKeyboard(ctx context.Context, b *bot.Bot, userIDs []int64) {
-	keyboard := &models.InlineKeyboardMarkup{
-		InlineKeyboard: [][]models.InlineKeyboardButton{
-			{
-				{Text: "👍", CallbackData: "like"},
-				{Text: "👎", CallbackData: "dislike"},
+	for i, id := range userIDs {
+		keyboard := &models.InlineKeyboardMarkup{
+			InlineKeyboard: [][]models.InlineKeyboardButton{
+				{
+					{Text: "👍", CallbackData: "like:"},
+					{Text: "👎", CallbackData: "dislike:"},
+				},
 			},
-		},
-	}
-
-	for _, id := range userIDs {
+		}
+		keyboard.InlineKeyboard[0][0].CallbackData += strconv.FormatInt(userIDs[1-i], 10)
+		keyboard.InlineKeyboard[0][1].CallbackData += strconv.FormatInt(userIDs[1-i], 10)
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:      id,
 			Text:        "Оцените собеседника.",

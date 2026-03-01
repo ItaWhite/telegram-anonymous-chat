@@ -4,6 +4,8 @@ import (
 	"fmt"
 	botmodels "go-telegrambot-test/internal/models"
 	"go-telegrambot-test/internal/queue"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -195,14 +197,26 @@ func (s *ChatService) Default(userID int64, userMessage string) (ServiceResult, 
 	return res, nil
 }
 
-func (s *ChatService) ChangeRating(userID int64, data string) {
-	switch data {
-	case "like":
-		s.users[userID].Rating++
-	case "dislike":
-		s.users[userID].Rating--
+func (s *ChatService) ChangeRating(data string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	parts := strings.Split(data, ":")
+	if len(parts) != 2 {
+		return
 	}
-	fmt.Printf("ID: %d | Rating: %d\n", userID, s.users[userID].Rating)
+	userID, err := strconv.Atoi(parts[1])
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	switch parts[0] {
+	case "like":
+		s.users[int64(userID)].Rating++
+	case "dislike":
+		s.users[int64(userID)].Rating--
+	}
+	fmt.Printf("ID: %d | Rating: %d\n", userID, s.users[int64(userID)].Rating)
 }
 
 func pair(u1, u2 *botmodels.User) {

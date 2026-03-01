@@ -37,7 +37,6 @@ func main() {
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/start", bot.MatchTypeExact, h.StartHandler)
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/next", bot.MatchTypeExact, h.NextHandler)
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/stop", bot.MatchTypeExact, h.StopHandler)
-	b.RegisterHandler(bot.HandlerTypeMessageText, "/test", bot.MatchTypeExact, h.TestHandler)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "", bot.MatchTypePrefix, h.CallbackHandler)
 
 	b.Start(ctx)
