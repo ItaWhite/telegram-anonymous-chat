@@ -43,6 +43,9 @@ func (h *TelegramHandler) DefaultHandler(ctx context.Context, b *bot.Bot, update
 	if update.Message.Voice != nil {
 		h.handleVoice(ctx, b, update)
 	}
+	if update.Message.VideoNote != nil {
+		h.handleVideoMessage(ctx, b, update)
+	}
 }
 
 func (h *TelegramHandler) StartHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
@@ -169,5 +172,16 @@ func (h *TelegramHandler) handleVoice(ctx context.Context, b *bot.Bot, update *m
 		ChatID:  partnerID,
 		Voice:   &models.InputFileString{Data: voice.FileID},
 		Caption: update.Message.Caption,
+	})
+}
+
+func (h *TelegramHandler) handleVideoMessage(ctx context.Context, b *bot.Bot, update *models.Update) {
+	videoNote := update.Message.VideoNote
+	userID := update.Message.From.ID
+	partnerID := h.service.GetPartner(userID)
+
+	b.SendVideoNote(ctx, &bot.SendVideoNoteParams{
+		ChatID:    partnerID,
+		VideoNote: &models.InputFileString{Data: videoNote.FileID},
 	})
 }
