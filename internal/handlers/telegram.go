@@ -85,8 +85,8 @@ func (h *TelegramHandler) CallbackHandler(ctx context.Context, b *bot.Bot, updat
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
 	data := update.CallbackQuery.Data
 	h.service.ChangeRating(chatID, data)
-
-	// TODO изменить сообщение с inline-клавиатурой
+	messageID := update.CallbackQuery.Message.Message.ID
+	changeRatingKeyboard(ctx, b, chatID, messageID)
 }
 
 func sendRatingKeyboard(ctx context.Context, b *bot.Bot, userIDs []int64) {
@@ -106,4 +106,13 @@ func sendRatingKeyboard(ctx context.Context, b *bot.Bot, userIDs []int64) {
 			ReplyMarkup: keyboard,
 		})
 	}
+}
+
+func changeRatingKeyboard(ctx context.Context, b *bot.Bot, chatID int64, messageID int) {
+	b.EditMessageText(ctx, &bot.EditMessageTextParams{
+		ChatID:      chatID,
+		MessageID:   messageID,
+		Text:        "Спасибо за оценку.",
+		ReplyMarkup: nil,
+	})
 }
