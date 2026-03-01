@@ -22,10 +22,7 @@ func (h *TelegramHandler) DefaultHandler(ctx context.Context, b *bot.Bot, update
 	if update.Message == nil {
 		return
 	}
-	if update.Message.Photo != nil && len(update.Message.Photo) != 0 { // если отправлено фото
-		h.handlePhoto(ctx, b, update)
-		return
-	}
+
 	userID := update.Message.From.ID
 	res, err := h.service.Default(userID, update.Message.Text)
 	if err != nil {
@@ -33,6 +30,16 @@ func (h *TelegramHandler) DefaultHandler(ctx context.Context, b *bot.Bot, update
 	}
 
 	sendMessages(ctx, b, res)
+	partnerID := h.service.GetPartner(userID)
+	if partnerID == 0 {
+		return
+	}
+	if update.Message.Photo != nil && len(update.Message.Photo) != 0 { // если отправлено фото
+		h.handlePhoto(ctx, b, update)
+	}
+	if update.Message.Video != nil {
+		h.handleVideo(ctx, b, update)
+	}
 }
 
 func (h *TelegramHandler) StartHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
@@ -134,6 +141,18 @@ func (h *TelegramHandler) handlePhoto(ctx context.Context, b *bot.Bot, update *m
 	b.SendPhoto(ctx, &bot.SendPhotoParams{
 		ChatID:  partnerID,
 		Photo:   &models.InputFileString{Data: photo.FileID},
+		Caption: update.Message.Caption,
+	})
+}
+
+func (h *TelegramHandler) handleVideo(ctx context.Context, b *bot.Bot, update *models.Update) {
+	video := update.Message.Video
+	userID := update.Message.From.ID
+	partnerID := h.service.GetPartner(userID)
+
+	b.SendVideo(ctx, &bot.SendVideoParams{
+		ChatID:  partnerID,
+		Video:   &models.InputFileString{Data: video.FileID},
 		Caption: update.Message.Caption,
 	})
 }
