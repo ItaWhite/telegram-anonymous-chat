@@ -1,6 +1,7 @@
 package services
 
 import (
+	"fmt"
 	botmodels "go-telegrambot-test/internal/models"
 	"go-telegrambot-test/internal/queue"
 	"sync"
@@ -23,26 +24,26 @@ func NewChatService() *ChatService {
 	return s
 }
 
-func (s *ChatService) Next(userID int64) ([]BotMessage, error) {
+func (s *ChatService) Next(userID int64) (ServiceResult, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	var msgs []BotMessage
+	res := ServiceResult{}
 
 	user, ok := s.users[userID]
 	if !ok {
-		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Отправьте /start для входа."})
-		return msgs, nil
+		res.Messages = append(res.Messages, BotMessage{ChatID: userID, Message: "Отправьте /start для входа."})
+		return res, nil
 	}
 
 	if user.Banned {
-		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Доступ к боту временно ограничен."})
-		return msgs, nil
+		res.Messages = append(res.Messages, BotMessage{ChatID: userID, Message: "Доступ к боту временно ограничен."})
+		return res, nil
 	}
 	resetDailyChats(user)
 	if isRestricted(user) {
-		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Дневной лимит чатов исчерпан."})
-		return msgs, nil
+		res.Messages = append(res.Messages, BotMessage{ChatID: userID, Message: "Дневной лимит чатов исчерпан."})
+		return res, nil
 	}
 
 	if user.State == botmodels.StatePaired {
@@ -50,91 +51,95 @@ func (s *ChatService) Next(userID int64) ([]BotMessage, error) {
 		if !ok {
 			user.State = botmodels.StateIdle
 			user.PartnerID = 0
-			return msgs, nil
+			return res, nil
 		}
 		unpair(user, partner)
-		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Вы завершили чат."})
-		msgs = append(msgs, BotMessage{ChatID: partner.ID, Message: "Собеседник завершил чат."})
+		res.Messages = append(res.Messages, BotMessage{ChatID: userID, Message: "Вы завершили чат.\nДля поиска собеседника отправьте /next."})
+		res.Messages = append(res.Messages, BotMessage{ChatID: partner.ID, Message: "Собеседник завершил чат.\nДля поиска собеседника отправьте /next."})
+		res.ChatEnded = true
+		res.UserIDs = []int64{userID, partner.ID}
 	}
 
 	// отправка /next до завершения поиска
 	if user.State == botmodels.StateWaiting {
-		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Поиск собеседника..."})
-		return msgs, nil
+		res.Messages = append(res.Messages, BotMessage{ChatID: userID, Message: "Поиск собеседника..."})
+		return res, nil
 	}
 
 	if !s.waitingQueue.IsEmpty() {
 		partnerID, ok := s.waitingQueue.Dequeue()
 		if !ok {
-			return msgs, nil
+			return res, nil
 		}
 		partner, ok := s.users[partnerID]
 		if !ok {
 			user.State = botmodels.StateIdle
 			user.PartnerID = 0
-			return msgs, nil
+			return res, nil
 		}
 		pair(user, partner)
 
-		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Собеседник найден"})
-		msgs = append(msgs, BotMessage{ChatID: partnerID, Message: "Собеседник найден"})
-		return msgs, nil
+		res.Messages = append(res.Messages, BotMessage{ChatID: userID, Message: "Собеседник найден"})
+		res.Messages = append(res.Messages, BotMessage{ChatID: partnerID, Message: "Собеседник найден"})
+		return res, nil
 	}
 
 	s.waitingQueue.Enqueue(userID)
 	s.users[userID].State = botmodels.StateWaiting
-	msgs = append(msgs, BotMessage{ChatID: userID, Message: "Поиск собеседника..."})
-	return msgs, nil
+	res.Messages = append(res.Messages, BotMessage{ChatID: userID, Message: "Поиск собеседника..."})
+	return res, nil
 }
 
-func (s *ChatService) Stop(userID int64) ([]BotMessage, error) {
+func (s *ChatService) Stop(userID int64) (ServiceResult, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	var msgs []BotMessage
+	res := ServiceResult{}
 
 	user, ok := s.users[userID]
 	if !ok {
-		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Отправьте /start для входа."})
-		return msgs, nil
+		res.Messages = append(res.Messages, BotMessage{ChatID: userID, Message: "Отправьте /start для входа."})
+		return res, nil
 	}
 
 	if user.Banned {
-		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Доступ к боту временно ограничен."})
-		return msgs, nil
+		res.Messages = append(res.Messages, BotMessage{ChatID: userID, Message: "Доступ к боту временно ограничен."})
+		return res, nil
 	}
 	resetDailyChats(user)
 	if isRestricted(user) {
-		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Дневной лимит чатов исчерпан."})
-		return msgs, nil
+		res.Messages = append(res.Messages, BotMessage{ChatID: userID, Message: "Дневной лимит чатов исчерпан."})
+		return res, nil
 	}
 
 	switch user.State {
 	case botmodels.StateIdle:
-		msgs = append(msgs, BotMessage{ChatID: userID, Message: "У вас сейчас нет собеседника.\nДля поиска собеседника отправьте /next."})
+		res.Messages = append(res.Messages, BotMessage{ChatID: userID, Message: "У вас сейчас нет собеседника.\nДля поиска собеседника отправьте /next."})
 	case botmodels.StateWaiting:
 		s.waitingQueue.Remove(userID)
 		user.State = botmodels.StateIdle
-		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Поиск собеседника прекращен."})
+		res.Messages = append(res.Messages, BotMessage{ChatID: userID, Message: "Поиск собеседника прекращен."})
 	case botmodels.StatePaired:
 		partner, ok := s.users[user.PartnerID]
 		if !ok {
 			user.State = botmodels.StateIdle
 			user.PartnerID = 0
-			return msgs, nil
+			return res, nil
 		}
 		unpair(user, partner)
-		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Вы завершили чат.\nДля поиска собеседника отправьте /next."})
-		msgs = append(msgs, BotMessage{ChatID: partner.ID, Message: "Собеседник завершил чат.\nДля поиска собеседника отправьте /next."})
+		res.Messages = append(res.Messages, BotMessage{ChatID: userID, Message: "Вы завершили чат.\nДля поиска собеседника отправьте /next."})
+		res.Messages = append(res.Messages, BotMessage{ChatID: partner.ID, Message: "Собеседник завершил чат.\nДля поиска собеседника отправьте /next."})
+		res.ChatEnded = true
+		res.UserIDs = []int64{userID, partner.ID}
 	}
-	return msgs, nil
+	return res, nil
 }
 
-func (s *ChatService) Start(userID int64, username string) ([]BotMessage, error) {
+func (s *ChatService) Start(userID int64, username string) (ServiceResult, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	var msgs []BotMessage
+	res := ServiceResult{}
 
 	_, ok := s.users[userID]
 	if !ok {
@@ -147,47 +152,57 @@ func (s *ChatService) Start(userID int64, username string) ([]BotMessage, error)
 			DailyChats: 0,
 			LastReset:  time.Now(),
 		}
-		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Добро пожаловать, " + username})
-		return msgs, nil
+		res.Messages = append(res.Messages, BotMessage{ChatID: userID, Message: "Добро пожаловать, " + username})
+		return res, nil
 	}
 
-	msgs = append(msgs, BotMessage{ChatID: userID, Message: "Вы уже вошли.\nДля поиска собеседника отправьте /next"})
-	return msgs, nil
+	res.Messages = append(res.Messages, BotMessage{ChatID: userID, Message: "Вы уже вошли.\nДля поиска собеседника отправьте /next"})
+	return res, nil
 }
 
-func (s *ChatService) Default(userID int64, userMessage string) ([]BotMessage, error) {
+func (s *ChatService) Default(userID int64, userMessage string) (ServiceResult, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	var msgs []BotMessage
+	res := ServiceResult{}
 
 	user, ok := s.users[userID]
 	if !ok {
-		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Отправьте /start для входа."})
-		return msgs, nil
+		res.Messages = append(res.Messages, BotMessage{ChatID: userID, Message: "Отправьте /start для входа."})
+		return res, nil
 	}
 
 	if user.Banned {
-		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Доступ к боту временно ограничен."})
-		return msgs, nil
+		res.Messages = append(res.Messages, BotMessage{ChatID: userID, Message: "Доступ к боту временно ограничен."})
+		return res, nil
 	}
 	resetDailyChats(user)
 	if isRestricted(user) {
-		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Дневной лимит чатов исчерпан."})
-		return msgs, nil
+		res.Messages = append(res.Messages, BotMessage{ChatID: userID, Message: "Дневной лимит чатов исчерпан."})
+		return res, nil
 	}
 
 	switch user.State {
 	case botmodels.StateIdle:
-		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Вы не в диалоге.\nДля поиска собеседника отправьте /next."})
+		res.Messages = append(res.Messages, BotMessage{ChatID: userID, Message: "Вы не в диалоге.\nДля поиска собеседника отправьте /next."})
 	case botmodels.StateWaiting:
-		msgs = append(msgs, BotMessage{ChatID: userID, Message: "Собеседник еще не найден."})
+		res.Messages = append(res.Messages, BotMessage{ChatID: userID, Message: "Собеседник еще не найден."})
 	case botmodels.StatePaired:
 		partnerID := user.PartnerID
-		msgs = append(msgs, BotMessage{ChatID: partnerID, Message: userMessage})
+		res.Messages = append(res.Messages, BotMessage{ChatID: partnerID, Message: userMessage})
 
 	}
-	return msgs, nil
+	return res, nil
+}
+
+func (s *ChatService) ChangeRating(userID int64, data string) {
+	switch data {
+	case "like":
+		s.users[userID].Rating++
+	case "dislike":
+		s.users[userID].Rating--
+	}
+	fmt.Printf("ID: %d | Rating: %d\n", userID, s.users[userID].Rating)
 }
 
 func pair(u1, u2 *botmodels.User) {
@@ -218,4 +233,10 @@ func isRestricted(u *botmodels.User) bool {
 type BotMessage struct {
 	ChatID  int64
 	Message string
+}
+
+type ServiceResult struct {
+	Messages  []BotMessage
+	ChatEnded bool
+	UserIDs   []int64
 }
