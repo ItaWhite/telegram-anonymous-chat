@@ -216,6 +216,37 @@ func (s *ChatService) ChangeRating(data string) error {
 	return nil
 }
 
+func (s *ChatService) ManageBlocking(userID int64) (ServiceResult, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	res := ServiceResult{}
+
+	user, ok := s.users[userID]
+	if !ok {
+		return res, nil
+	}
+
+	switch user.State {
+	case chatmodels.StateIdle:
+		return res, nil
+	case chatmodels.StateWaiting:
+		s.waitingQueue.Remove(userID)
+		user.State = chatmodels.StateIdle
+		return res, nil
+	case chatmodels.StatePaired:
+		partner, ok := s.users[user.PartnerID]
+		if !ok {
+			user.State = chatmodels.StateIdle
+			user.PartnerID = 0
+			return res, nil
+		}
+		unpair(user, partner)
+		res.Messages = append(res.Messages, BotMessage{ChatID: partner.ID, Message: "Собеседник заблокировал бота и ваш диалог завершился.\nДля поиска собеседника отправьте /next."})
+	}
+	return res, nil
+}
+
 func pair(u1, u2 *chatmodels.User) {
 	u1.PartnerID = u2.ID
 	u2.PartnerID = u1.ID

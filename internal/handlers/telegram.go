@@ -136,6 +136,19 @@ func changeRatingKeyboard(ctx context.Context, b *bot.Bot, chatID int64, message
 	})
 }
 
+func (h *TelegramHandler) MyChatMemberHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	userID := update.MyChatMember.From.ID
+	partnerID := h.service.GetPartner(userID)
+	if partnerID == 0 {
+		return
+	}
+	res, err := h.service.ManageBlocking(userID)
+	if err != nil {
+		fmt.Println(err)
+	}
+	sendMessages(ctx, b, res)
+}
+
 func (h *TelegramHandler) handlePhoto(ctx context.Context, b *bot.Bot, update *models.Update) {
 	photo := update.Message.Photo[len(update.Message.Photo)-1]
 	userID := update.Message.From.ID
