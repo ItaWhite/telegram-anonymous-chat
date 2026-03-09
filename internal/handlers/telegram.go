@@ -34,7 +34,7 @@ func (h *TelegramHandler) DefaultHandler(ctx context.Context, b *bot.Bot, update
 	if partnerID == 0 {
 		return
 	}
-	if update.Message.Photo != nil && len(update.Message.Photo) != 0 { // если отправлено фото
+	if update.Message.Photo != nil && len(update.Message.Photo) != 0 {
 		h.handlePhoto(ctx, b, update)
 	}
 	if update.Message.Video != nil {
