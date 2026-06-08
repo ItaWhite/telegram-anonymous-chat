@@ -2,7 +2,6 @@ package services
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -212,7 +211,6 @@ func (s *ChatService) ChangeRating(data string) error {
 	case "dislike":
 		s.users[userID].Rating--
 	}
-	fmt.Printf("ID: %d | Rating: %d\n", userID, s.users[userID].Rating)
 	return nil
 }
 
