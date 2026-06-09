@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"strconv"
 	"telegram-anonymous-chat/internal/services"
 
@@ -26,7 +26,8 @@ func (h *TelegramHandler) DefaultHandler(ctx context.Context, b *bot.Bot, update
 	userID := update.Message.From.ID
 	res, err := h.service.Default(userID, update.Message.Text)
 	if err != nil {
-		fmt.Println(err)
+		slog.Error("DefaultHandler", "error", err, "user_id", userID)
+		return
 	}
 
 	sendMessages(ctx, b, res)
@@ -53,7 +54,8 @@ func (h *TelegramHandler) StartHandler(ctx context.Context, b *bot.Bot, update *
 	username := update.Message.From.Username
 	res, err := h.service.Start(userID, username)
 	if err != nil {
-		fmt.Println(err)
+		slog.Error("StartHandler", "error", err, "user_id", userID)
+		return
 	}
 
 	sendMessages(ctx, b, res)
@@ -63,7 +65,8 @@ func (h *TelegramHandler) NextHandler(ctx context.Context, b *bot.Bot, update *m
 	userID := update.Message.Chat.ID
 	res, err := h.service.Next(userID)
 	if err != nil {
-		fmt.Println(err)
+		slog.Error("NextHandler", "error", err, "user_id", userID)
+		return
 	}
 	sendMessages(ctx, b, res)
 	if res.ChatEnded {
@@ -75,7 +78,8 @@ func (h *TelegramHandler) StopHandler(ctx context.Context, b *bot.Bot, update *m
 	userID := update.Message.Chat.ID
 	res, err := h.service.Stop(userID)
 	if err != nil {
-		fmt.Println(err)
+		slog.Error("StopHandler", "error", err, "user_id", userID)
+		return
 	}
 	sendMessages(ctx, b, res)
 	if res.ChatEnded {
@@ -101,7 +105,8 @@ func (h *TelegramHandler) CallbackHandler(ctx context.Context, b *bot.Bot, updat
 	data := update.CallbackQuery.Data
 	err := h.service.ChangeRating(data)
 	if err != nil {
-		fmt.Println(err)
+		slog.Error("CallbackHandler", "error", err, "chat_id", chatID)
+		return
 	}
 	messageID := update.CallbackQuery.Message.Message.ID
 	changeRatingKeyboard(ctx, b, chatID, messageID)
@@ -144,7 +149,8 @@ func (h *TelegramHandler) MyChatMemberHandler(ctx context.Context, b *bot.Bot, u
 	}
 	res, err := h.service.ManageBlocking(userID)
 	if err != nil {
-		fmt.Println(err)
+		slog.Error("MyChatMemberHandler", "error", err, "partner_id", partnerID)
+		return
 	}
 	sendMessages(ctx, b, res)
 }
