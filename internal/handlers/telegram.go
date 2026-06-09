@@ -89,23 +89,29 @@ func (h *TelegramHandler) StopHandler(ctx context.Context, b *bot.Bot, update *m
 
 func sendMessages(ctx context.Context, b *bot.Bot, res services.ServiceResult) {
 	for _, msg := range res.Messages {
-		b.SendMessage(ctx, &bot.SendMessageParams{
+		_, err := b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: msg.ChatID,
 			Text:   msg.Message,
 		})
+		if err != nil {
+			slog.Error("sendMessage", "error", err, "chat_id", msg.ChatID)
+		}
 	}
 }
 
 func (h *TelegramHandler) CallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
-	b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+	_, err := b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
 		CallbackQueryID: update.CallbackQuery.ID,
 	})
-
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
-	data := update.CallbackQuery.Data
-	err := h.service.ChangeRating(data)
 	if err != nil {
-		slog.Error("CallbackHandler", "error", err, "chat_id", chatID)
+		slog.Error("CallbackHandler_AnswerCallbackQuery", "error", err, "chat_id", chatID)
+	}
+
+	data := update.CallbackQuery.Data
+	err = h.service.ChangeRating(data)
+	if err != nil {
+		slog.Error("CallbackHandler_ChangeRating", "error", err, "chat_id", chatID)
 		return
 	}
 	messageID := update.CallbackQuery.Message.Message.ID
@@ -124,21 +130,27 @@ func sendRatingKeyboard(ctx context.Context, b *bot.Bot, userIDs []int64) {
 		}
 		keyboard.InlineKeyboard[0][0].CallbackData += strconv.FormatInt(userIDs[1-i], 10)
 		keyboard.InlineKeyboard[0][1].CallbackData += strconv.FormatInt(userIDs[1-i], 10)
-		b.SendMessage(ctx, &bot.SendMessageParams{
+		_, err := b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:      id,
 			Text:        "Оцените собеседника.",
 			ReplyMarkup: keyboard,
 		})
+		if err != nil {
+			slog.Error("sendRatingKeyboard", "error", err, "chat_id", id)
+		}
 	}
 }
 
 func changeRatingKeyboard(ctx context.Context, b *bot.Bot, chatID int64, messageID int) {
-	b.EditMessageText(ctx, &bot.EditMessageTextParams{
+	_, err := b.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:      chatID,
 		MessageID:   messageID,
 		Text:        "Спасибо за оценку.",
 		ReplyMarkup: nil,
 	})
+	if err != nil {
+		slog.Error("changeRatingKeyboard", "error", err, "chat_id", chatID)
+	}
 }
 
 func (h *TelegramHandler) MyChatMemberHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
@@ -163,11 +175,14 @@ func (h *TelegramHandler) handlePhoto(ctx context.Context, b *bot.Bot, update *m
 		return
 	}
 
-	b.SendPhoto(ctx, &bot.SendPhotoParams{
+	_, err := b.SendPhoto(ctx, &bot.SendPhotoParams{
 		ChatID:  partnerID,
 		Photo:   &models.InputFileString{Data: photo.FileID},
 		Caption: update.Message.Caption,
 	})
+	if err != nil {
+		slog.Error("handlePhoto", "error", err, "chat_id", partnerID)
+	}
 }
 
 func (h *TelegramHandler) handleVideo(ctx context.Context, b *bot.Bot, update *models.Update) {
@@ -175,11 +190,14 @@ func (h *TelegramHandler) handleVideo(ctx context.Context, b *bot.Bot, update *m
 	userID := update.Message.From.ID
 	partnerID := h.service.GetPartner(userID)
 
-	b.SendVideo(ctx, &bot.SendVideoParams{
+	_, err := b.SendVideo(ctx, &bot.SendVideoParams{
 		ChatID:  partnerID,
 		Video:   &models.InputFileString{Data: video.FileID},
 		Caption: update.Message.Caption,
 	})
+	if err != nil {
+		slog.Error("handleVideo", "error", err, "chat_id", partnerID)
+	}
 }
 
 func (h *TelegramHandler) handleVoice(ctx context.Context, b *bot.Bot, update *models.Update) {
@@ -187,11 +205,14 @@ func (h *TelegramHandler) handleVoice(ctx context.Context, b *bot.Bot, update *m
 	userID := update.Message.From.ID
 	partnerID := h.service.GetPartner(userID)
 
-	b.SendVoice(ctx, &bot.SendVoiceParams{
+	_, err := b.SendVoice(ctx, &bot.SendVoiceParams{
 		ChatID:  partnerID,
 		Voice:   &models.InputFileString{Data: voice.FileID},
 		Caption: update.Message.Caption,
 	})
+	if err != nil {
+		slog.Error("handleVoice", "error", err, "chat_id", partnerID)
+	}
 }
 
 func (h *TelegramHandler) handleVideoMessage(ctx context.Context, b *bot.Bot, update *models.Update) {
@@ -199,8 +220,11 @@ func (h *TelegramHandler) handleVideoMessage(ctx context.Context, b *bot.Bot, up
 	userID := update.Message.From.ID
 	partnerID := h.service.GetPartner(userID)
 
-	b.SendVideoNote(ctx, &bot.SendVideoNoteParams{
+	_, err := b.SendVideoNote(ctx, &bot.SendVideoNoteParams{
 		ChatID:    partnerID,
 		VideoNote: &models.InputFileString{Data: videoNote.FileID},
 	})
+	if err != nil {
+		slog.Error("handleVideoMessage", "error", err, "chat_id", partnerID)
+	}
 }
