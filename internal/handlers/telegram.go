@@ -195,6 +195,7 @@ func (h *TelegramHandler) CallbackHandler(ctx context.Context, b *bot.Bot, updat
 	chatID := update.CallbackQuery.Message.Message.Chat.ID
 	if err != nil {
 		slog.Error("CallbackHandler_AnswerCallbackQuery", "error", err, "chat_id", chatID)
+		return
 	}
 
 	data := update.CallbackQuery.Data

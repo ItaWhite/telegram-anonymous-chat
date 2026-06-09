@@ -1,7 +1,7 @@
 package services
 
 import (
-	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -11,6 +11,10 @@ import (
 )
 
 const DailyChatLimit = 20
+
+var ErrNoPartner = fmt.Errorf("user has no partner")
+var ErrNonExistentUser = fmt.Errorf("non existent user")
+var ErrIncorrectCallbackData = fmt.Errorf("incorrect callback query data")
 
 type ChatService struct {
 	users        map[int64]*chatmodels.User
@@ -52,7 +56,7 @@ func (s *ChatService) Next(userID int64) (ServiceResult, error) {
 		if !ok {
 			user.State = chatmodels.StateIdle
 			user.PartnerID = 0
-			return res, nil
+			return res, ErrNoPartner
 		}
 		unpair(user, partner)
 		res.Messages = append(res.Messages, BotMessage{ChatID: userID, Message: "Вы завершили чат.\nДля поиска собеседника отправьте /next."})
@@ -70,13 +74,13 @@ func (s *ChatService) Next(userID int64) (ServiceResult, error) {
 	if !s.waitingQueue.IsEmpty() {
 		partnerID, ok := s.waitingQueue.Dequeue()
 		if !ok {
-			return res, nil
+			return res, ErrNoPartner
 		}
 		partner, ok := s.users[partnerID]
 		if !ok {
 			user.State = chatmodels.StateIdle
 			user.PartnerID = 0
-			return res, nil
+			return res, ErrNoPartner
 		}
 		pair(user, partner)
 
@@ -124,7 +128,7 @@ func (s *ChatService) Stop(userID int64) (ServiceResult, error) {
 		if !ok {
 			user.State = chatmodels.StateIdle
 			user.PartnerID = 0
-			return res, nil
+			return res, ErrNoPartner
 		}
 		unpair(user, partner)
 		res.Messages = append(res.Messages, BotMessage{ChatID: userID, Message: "Вы завершили чат.\nДля поиска собеседника отправьте /next."})
@@ -199,17 +203,22 @@ func (s *ChatService) ChangeRating(data string) error {
 
 	parts := strings.Split(data, ":")
 	if len(parts) != 2 {
-		return errors.New("incorrect CallbackData")
+		return ErrIncorrectCallbackData
 	}
 	userID, err := strconv.ParseInt(parts[1], 10, 64)
 	if err != nil {
 		return err
 	}
+	user, ok := s.users[userID]
+	if !ok {
+		return ErrNonExistentUser
+	}
+
 	switch parts[0] {
 	case "like":
-		s.users[userID].Rating++
+		user.Rating++
 	case "dislike":
-		s.users[userID].Rating--
+		user.Rating--
 	}
 	return nil
 }
@@ -222,7 +231,7 @@ func (s *ChatService) ManageBlocking(userID int64) (ServiceResult, error) {
 
 	user, ok := s.users[userID]
 	if !ok {
-		return res, nil
+		return res, ErrNonExistentUser
 	}
 
 	switch user.State {
@@ -237,7 +246,7 @@ func (s *ChatService) ManageBlocking(userID int64) (ServiceResult, error) {
 		if !ok {
 			user.State = chatmodels.StateIdle
 			user.PartnerID = 0
-			return res, nil
+			return res, ErrNoPartner
 		}
 		unpair(user, partner)
 		res.Messages = append(res.Messages, BotMessage{ChatID: partner.ID, Message: "Собеседник заблокировал бота и ваш диалог завершился.\nДля поиска собеседника отправьте /next."})
