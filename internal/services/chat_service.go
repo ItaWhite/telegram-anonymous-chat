@@ -10,24 +10,23 @@ import (
 	"time"
 )
 
-const DailyChatLimit = 20
-
 var ErrNoPartner = fmt.Errorf("user has no partner")
 var ErrNonExistentUser = fmt.Errorf("non existent user")
 var ErrIncorrectCallbackData = fmt.Errorf("incorrect callback query data")
 
 type ChatService struct {
-	users        map[int64]*chatmodels.User
-	waitingQueue *queue.WaitingQueue
-	mu           sync.Mutex
+	dailyChatLimit int
+	users          map[int64]*chatmodels.User
+	waitingQueue   *queue.WaitingQueue
+	mu             sync.Mutex
 }
 
-func NewChatService() *ChatService {
-	s := &ChatService{}
-	s.users = make(map[int64]*chatmodels.User)
-	s.waitingQueue = &queue.WaitingQueue{}
-	s.mu = sync.Mutex{}
-	return s
+func NewChatService(dailyChatLimit int) *ChatService {
+	return &ChatService{
+		dailyChatLimit: dailyChatLimit,
+		users:          make(map[int64]*chatmodels.User),
+		waitingQueue:   &queue.WaitingQueue{},
+	}
 }
 
 func (s *ChatService) Next(userID int64) (ServiceResult, error) {
@@ -46,7 +45,7 @@ func (s *ChatService) Next(userID int64) (ServiceResult, error) {
 		return res, nil
 	}
 	resetDailyChats(user)
-	if isRestricted(user) {
+	if s.isRestricted(user) {
 		res.Messages = append(res.Messages, BotMessage{ChatID: userID, Message: "Дневной лимит чатов исчерпан."})
 		return res, nil
 	}
@@ -111,7 +110,7 @@ func (s *ChatService) Stop(userID int64) (ServiceResult, error) {
 		return res, nil
 	}
 	resetDailyChats(user)
-	if isRestricted(user) {
+	if s.isRestricted(user) {
 		res.Messages = append(res.Messages, BotMessage{ChatID: userID, Message: "Дневной лимит чатов исчерпан."})
 		return res, nil
 	}
@@ -180,7 +179,7 @@ func (s *ChatService) Default(userID int64, userMessage string) (ServiceResult, 
 		return res, nil
 	}
 	resetDailyChats(user)
-	if isRestricted(user) {
+	if s.isRestricted(user) {
 		res.Messages = append(res.Messages, BotMessage{ChatID: userID, Message: "Дневной лимит чатов исчерпан."})
 		return res, nil
 	}
@@ -275,8 +274,8 @@ func resetDailyChats(u *chatmodels.User) {
 	}
 }
 
-func isRestricted(u *chatmodels.User) bool {
-	return u.Rating < 0 && u.DailyChats >= DailyChatLimit
+func (s *ChatService) isRestricted(u *chatmodels.User) bool {
+	return u.Rating < 0 && u.DailyChats >= s.dailyChatLimit
 }
 
 func (s *ChatService) GetPartner(userID int64) int64 {

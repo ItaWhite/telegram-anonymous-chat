@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"telegram-anonymous-chat/internal/handlers"
 	"telegram-anonymous-chat/internal/services"
 
@@ -19,10 +20,15 @@ func main() {
 
 	err := godotenv.Load()
 	if err != nil {
-		log.Println(err)
+		log.Fatal(err)
 	}
 
-	s := services.NewChatService()
+	dailyChatLimit, err := strconv.Atoi(os.Getenv("DAILY_CHAT_LIMIT"))
+	if err != nil {
+		log.Println("Суточный лимит не задан")
+		dailyChatLimit = 20
+	}
+	s := services.NewChatService(dailyChatLimit)
 	h := handlers.NewTelegramHandler(s)
 
 	opts := []bot.Option{
