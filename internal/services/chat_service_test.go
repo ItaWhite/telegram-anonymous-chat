@@ -9,7 +9,7 @@ import (
 )
 
 func TestStart(t *testing.T) {
-	s := NewChatService(1)
+	s := NewChatService(20, -10)
 	res, err := s.Start(1, "user1")
 	u := s.users[1]
 	require.NotNil(t, res)
@@ -18,7 +18,7 @@ func TestStart(t *testing.T) {
 }
 
 func TestNext_Pairing(t *testing.T) {
-	s := NewChatService(1)
+	s := NewChatService(20, -10)
 	s.Start(1, "user1")
 	s.Start(2, "user2")
 	u1 := s.users[1]
@@ -36,7 +36,7 @@ func TestNext_Pairing(t *testing.T) {
 }
 
 func TestNext_Waiting(t *testing.T) {
-	s := NewChatService(1)
+	s := NewChatService(20, -10)
 	s.Start(1, "user1")
 	u := s.users[1]
 	s.Next(1)
@@ -48,7 +48,7 @@ func TestNext_Waiting(t *testing.T) {
 }
 
 func TestStop_Paired(t *testing.T) {
-	s := NewChatService(1)
+	s := NewChatService(20, -10)
 	s.Start(1, "user1")
 	s.Start(2, "user2")
 	u1 := s.users[1]
@@ -66,7 +66,7 @@ func TestStop_Paired(t *testing.T) {
 }
 
 func TestStop_Waiting(t *testing.T) {
-	s := NewChatService(1)
+	s := NewChatService(20, -10)
 	s.Start(1, "user1")
 	u := s.users[1]
 	s.Next(1)
@@ -78,7 +78,7 @@ func TestStop_Waiting(t *testing.T) {
 }
 
 func TestDefault_Paired(t *testing.T) {
-	s := NewChatService(1)
+	s := NewChatService(20, -10)
 	s.Start(1, "user1")
 	s.Start(2, "user2")
 	s.Next(1)
@@ -91,7 +91,7 @@ func TestDefault_Paired(t *testing.T) {
 }
 
 func TestDefault_Idle(t *testing.T) {
-	s := NewChatService(1)
+	s := NewChatService(20, -10)
 	s.Start(1, "user1")
 	res, err := s.Default(1, "hello")
 	require.NotNil(t, res)
@@ -101,7 +101,7 @@ func TestDefault_Idle(t *testing.T) {
 }
 
 func TestChangeRating_Increase(t *testing.T) {
-	s := NewChatService(1)
+	s := NewChatService(20, -10)
 	s.Start(1, "user1")
 	u := s.users[1]
 	err := s.ChangeRating("like:1")
@@ -110,7 +110,7 @@ func TestChangeRating_Increase(t *testing.T) {
 }
 
 func TestChangeRating_Decrease(t *testing.T) {
-	s := NewChatService(1)
+	s := NewChatService(20, -10)
 	s.Start(1, "user1")
 	u := s.users[1]
 	err := s.ChangeRating("dislike:1")
@@ -119,7 +119,7 @@ func TestChangeRating_Decrease(t *testing.T) {
 }
 
 func TestManageBlocking_Waiting(t *testing.T) {
-	s := NewChatService(1)
+	s := NewChatService(20, -10)
 	s.Start(1, "user1")
 	u := s.users[1]
 	s.Next(1)
@@ -130,7 +130,7 @@ func TestManageBlocking_Waiting(t *testing.T) {
 }
 
 func TestManageBlocking_Paired(t *testing.T) {
-	s := NewChatService(1)
+	s := NewChatService(20, -10)
 	s.Start(1, "user1")
 	s.Start(2, "user2")
 	u1 := s.users[1]
