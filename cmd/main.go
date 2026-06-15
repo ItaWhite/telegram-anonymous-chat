@@ -28,7 +28,13 @@ func main() {
 		log.Println("Суточный лимит не задан")
 		dailyChatLimit = 20
 	}
-	s := services.NewChatService(dailyChatLimit)
+	lowRatingLimit, err := strconv.Atoi(os.Getenv("LOW_RATING_LIMIT"))
+	if err != nil {
+		log.Println("Нижняя граница рейтинга не задана")
+		lowRatingLimit = -10
+	}
+
+	s := services.NewChatService(dailyChatLimit, lowRatingLimit)
 	h := handlers.NewTelegramHandler(s)
 
 	opts := []bot.Option{

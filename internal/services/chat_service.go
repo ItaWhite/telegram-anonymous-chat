@@ -16,14 +16,16 @@ var ErrIncorrectCallbackData = fmt.Errorf("incorrect callback query data")
 
 type ChatService struct {
 	dailyChatLimit int
+	lowRatingLimit int
 	users          map[int64]*chatmodels.User
 	waitingQueue   *queue.WaitingQueue
 	mu             sync.Mutex
 }
 
-func NewChatService(dailyChatLimit int) *ChatService {
+func NewChatService(dailyChatLimit, lowRatingLimit int) *ChatService {
 	return &ChatService{
 		dailyChatLimit: dailyChatLimit,
+		lowRatingLimit: lowRatingLimit,
 		users:          make(map[int64]*chatmodels.User),
 		waitingQueue:   &queue.WaitingQueue{},
 	}
@@ -64,7 +66,6 @@ func (s *ChatService) Next(userID int64) (ServiceResult, error) {
 		res.UserIDs = []int64{userID, partner.ID}
 	}
 
-	// отправка /next до завершения поиска
 	if user.State == chatmodels.StateWaiting {
 		res.Messages = append(res.Messages, BotMessage{ChatID: userID, Message: "Поиск собеседника..."})
 		return res, nil
@@ -219,6 +220,8 @@ func (s *ChatService) ChangeRating(data string) error {
 	case "dislike":
 		user.Rating--
 	}
+
+	s.ban(user)
 	return nil
 }
 
@@ -271,6 +274,12 @@ func resetDailyChats(u *chatmodels.User) {
 	if time.Since(u.LastReset) >= 24*time.Hour {
 		u.LastReset = time.Now()
 		u.DailyChats = 0
+	}
+}
+
+func (s *ChatService) ban(u *chatmodels.User) {
+	if u.Rating < s.lowRatingLimit {
+		u.Banned = true
 	}
 }
 
