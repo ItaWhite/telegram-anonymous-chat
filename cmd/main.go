@@ -10,7 +10,6 @@ import (
 	"telegram-anonymous-chat/internal/services"
 
 	"github.com/go-telegram/bot"
-	"github.com/go-telegram/bot/models"
 	"github.com/joho/godotenv"
 )
 
@@ -47,15 +46,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	b.RegisterHandler(bot.HandlerTypeMessageText, "/start", bot.MatchTypeExact, h.StartHandler)
-	b.RegisterHandler(bot.HandlerTypeMessageText, "/next", bot.MatchTypeExact, h.NextHandler)
-	b.RegisterHandler(bot.HandlerTypeMessageText, "/stop", bot.MatchTypeExact, h.StopHandler)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "", bot.MatchTypePrefix, h.CallbackHandler)
-	b.RegisterHandlerMatchFunc(matchFunc, h.MyChatMemberHandler)
+	handlers.RegisterHandlers(b, h)
 
 	b.Start(ctx)
-}
-
-func matchFunc(update *models.Update) bool {
-	return update.MyChatMember != nil
 }
